@@ -1,3 +1,8 @@
 require_relative '../config/environment'
 
-puts "hello world"
+puts "WELCOME TO YOUR WARDROBE"
+
+cli = Interface.new
+
+#START PROGRAM
+cli.login
