@@ -9,6 +9,7 @@ class Interface
     @user = {}
   end
 
+  #login allows choices to create acct or use old acct
   def login
     system "clear"# clear log // cleaner look
     @prompt.select("LOGIN OR CREATE A NEW ACCOUNT") do |menu|
@@ -18,7 +19,9 @@ class Interface
     end
   end
 
+  #creation of new acct
   def new_user
+    system "clear"
     @prompt.say("I needz more info")
     @user = @prompt.collect do
       key(:name).ask('ENTER YOUR NAME?')
@@ -31,21 +34,29 @@ class Interface
     main_menu()
   end
 
+  #existing users can login
   def old_user
+    system"clear"
     user_email = @prompt.ask("What is your email?")
+    #checkr to see if actual user exists
     if User.find_by(email: user_email) == nil
       @prompt.say("NOT IN SYSTEM! CREATE A NEW ACCOUNT!")
       new_user()
     else
+      #look up existing user
       @user = User.find_by(email: user_email)
-      @prompt.say("WELCOME BACK #{@user[:name]}".upcase)
+      #greet user upon login
+      @prompt.say("WELCOME BACK #{@user[:name]}!".upcase)
+      sleep(2)
     end
+    #once complete navigates to main menu
     main_menu()
   end
 
+  #creation of main menu layout
   def main_menu
     system "clear"
-    @prompt.select("WHAT WOULD YOU LIKE TO DO #{@user[:name]}") do |menu|
+    @prompt.select("WHAT WOULD YOU LIKE TO DO #{@user[:name]}?") do |menu|
       menu.choice "SEE YOUR CLOSET", -> {closet()}
       menu.choice "BUY CLOTHING", -> {buy_clothes()}
       menu.choice "SETTINGS", -> {settings()}
@@ -58,7 +69,7 @@ class Interface
       main_menu()
   end
 
-  # buy clothes helper method
+  # buy clothes helper method [map]
   def clothing_stock
     Clothing.all.map do |clothing|
         clothing.name
@@ -68,63 +79,67 @@ class Interface
   def buy_clothes
    system "clear"
    clothing = [clothing_stock]
-   clothing << "MAIN MENU"
+   clothing << "BACK"
+   #stores shouldnt force you to buy things so this ^^
    #allows there to be a menu button at the very bottom of list
    #to go "back" without buying anything
-   buy = @prompt.select("HERES WHAT WE HAVE IN STOCK", clothing) 
-    if buy == "MAIN MENU"
+   buy = @prompt.select("HERE'S WHAT WE HAVE IN STOCK #{@user[:name]}.", clothing) 
+    if buy == "BACK"
         main_menu()
     end
    item = Clothing.find_by(name: buy)
-   Users_Clothes.create(user_id: @user.id, clothing_id: item.id)
+   UsersClothe.create(user_id: @user.id, clothing_id: item.id)
    main_menu()
   end
 
-  #enters closet
+  #enters closet / create closet layout
   def closet
     system "clear"
-     @prompt.select("HEY #{@user[:name]}, WHAT WOULD YOU LIKE TO DO?") do |menu|
-        menu.choice "SEE YOUR ITEMS", -> {closet2}
-        menu.choice "DONATE", ->{donate}
+     @prompt.select("HEY #{@user[:name]}, YOU'RE INSIDE YR CLOSET!") do |menu|
+        menu.choice "VIEW CLOTHING", -> {closet2}
+        menu.choice "DONATE CLOTHING", ->{donate}
         menu.choice "BACK", ->{back}
     end
   end
 
-  #closet helper method
+  #closet helper method :(
   def closet_helper
     system "clear"
-    user_clothing_array = Users_Clothes.select do |user_clothes|
-        user_clothes.user_id == @user.id
-    end # returns an array of all user_clothing items that belong to the user
-
-    clothing_items = user_clothing_array.map do |user_clothes|
-        #binding.pry
-        Clothing.find_by(id: user_clothes.clothing_id).name
-    end # returns an array of all the clothing item id's in user_clothing_array
+     clothing_items = @user.clothings.map do |clothing|
+        clothing.name
+     end 
     clothing_items
   end
-  
+
   # nested closet2 grants access to items in closet
+  #where we can view the items we actually own
   def closet2
+    system "clear"
     clothing = [closet_helper]
-    clothing << "MAIN MENU"
-    ggg = @prompt.select("HERES WHAT YOU OWN", clothing)
+    clothing << "BACK"
+    ggg = @prompt.select("HERE'S WHAT YOU OWN #{@user[:name]}!", clothing)
     ##adds menu button to bottom of list to go back
-    if ggg == "MAIN MENU"
+    if ggg == "BACK"
       main_menu()
   end
   end
 
+
+  #delete
   def donate
+    system "clear"
     donation =  @prompt.select("HERES WHAT YOU OWN", [closet_helper])
     decision = @prompt.yes?("MY GUY, YOU SURE YOU WANNA DONATE #{donation}?")
     if decision
       #binding.pry
-        # v is an "object" lord let me never forget it
+        # v is an "object"
         v = Clothing.find_by(name: donation)
-        gonzo = Users_Clothes.find_by(clothing_id: v.id)
+        #gonzo is also an obj 
+        gonzo = @user.users_clothes.find_by(clothing_id: v.id)
         gonzo.destroy
+        system"clear"
         @prompt.say("86'd #{donation}")
+        sleep(2)
         main_menu()
     else
         main_menu() 
@@ -142,21 +157,21 @@ class Interface
 
   #updating ftw
   def change_name
-    @user = @prompt.collect do
-        key(:name).ask('WHAT WOULD YOU LIKE TO CHANGE YOUR NAME TO?')
+        new_name = @prompt.ask('WHAT WOULD YOU LIKE TO CHANGE YOUR NAME TO?')
         @prompt.say("NAME SUCCESSFULLY CHANGED")
         sleep(1.7)
-      end
+      #this code was missing last time
+      #actually updates the current users name and persists
+      @user.update(name: new_name)
       main_menu()
   end
 
   #updating ftw
   def change_email
-    @user = @prompt.collect do
-        key(:email).ask('WHAT WOULD YOU LIKE TO CHANGE YOUR EMAIL TO?')
+        new_email = @prompt.ask('WHAT WOULD YOU LIKE TO CHANGE YOUR EMAIL TO?')
         @prompt.say("EMAIL SUCCESSFULLY CHANGED")
-        sleep(1.7)
-      end
+        sleep(1)
+      @user.update(email: new_email)
       main_menu()
   end
 
